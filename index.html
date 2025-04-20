@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Enlaces Directos Google Drive - Soluciones Novi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configuración opcional de Tailwind para los colores personalizados y modo oscuro
+        tailwind.config = {
+            darkMode: 'class', // o 'media' si prefieres basado en el sistema
+            theme: {
+                extend: {
+                    colors: {
+                        'novi-primary': '#0012ff',
+                        'novi-secondary': '#00ffba',
+                        'novi-dark': '#0e004a',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilo adicional para un degradado de fondo sutil y transiciones */
+        body {
+            /* Un fondo degradado suave para el body si lo deseas */
+            /* background: linear-gradient(to bottom right, #f0f4f8, #d9e2ec); */
+            transition: background-color 0.3s ease;
+        }
+        /* Estilos para modo oscuro del body */
+        body.dark {
+             background-color: #0a0c1c; /* Un fondo oscuro complementario */
+        }
+
+        /* Mejorar el enfoque en los inputs */
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 18, 255, 0.3); /* Sombra de enfoque con color primario */
+        }
+         input.dark:focus {
+             box-shadow: 0 0 0 3px rgba(0, 255, 186, 0.4); /* Sombra de enfoque con color secundario en modo oscuro */
+         }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-[#0a0c1c] min-h-screen flex items-center justify-center p-4 transition-colors duration-300">
+
+    <div class="w-full max-w-md bg-white dark:bg-novi-dark rounded-xl shadow-2xl p-6 md:p-8 space-y-6 transform transition-all duration-300 hover:scale-[1.01]">
+        
+        <div class="text-center">
+             <h1 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Soluciones Novi</h1>
+            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300">Generador de Enlaces Directos G-Drive</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Convierte enlaces de Google Drive en enlaces de descarga directa.</p>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label for="originalLink" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enlace Original de Google Drive</label>
+                <input type="url" id="originalLink" placeholder="Pega aquí el enlace para compartir..." class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-novi-primary focus:border-novi-primary dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 transition duration-150 ease-in-out">
+            </div>
+
+            <div>
+                <label for="generatedLink" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enlace de Descarga Directa</label>
+                <input type="text" id="generatedLink" readonly class="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 cursor-not-allowed transition duration-150 ease-in-out" placeholder="Aquí aparecerá el enlace directo...">
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-3 sm:space-y-0">
+            <button id="generateButton" class="w-full sm:w-1/2 flex-1 px-6 py-3 bg-gradient-to-r from-novi-primary to-novi-secondary text-white font-semibold rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-novi-primary dark:focus:ring-offset-novi-dark transform hover:-translate-y-0.5 transition duration-200 ease-in-out">
+                Generar Enlace
+            </button>
+            <button id="copyButton" class="w-full sm:w-1/2 flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-lg shadow-sm hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-offset-novi-dark transform hover:-translate-y-0.5 transition duration-200 ease-in-out">
+                Copiar Enlace
+            </button>
+        </div>
+
+        <p id="errorMessage" class="text-red-500 text-sm text-center mt-4 h-4"></p> <div class="text-center mt-4">
+            <button id="darkModeToggle" class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                Alternar Modo Claro/Oscuro
+            </button>
+         </div>
+
+    </div>
+
+    <script>
+        const originalLinkInput = document.getElementById('originalLink');
+        const generatedLinkInput = document.getElementById('generatedLink');
+        const generateButton = document.getElementById('generateButton');
+        const copyButton = document.getElementById('copyButton');
+        const errorMessage = document.getElementById('errorMessage');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const body = document.body;
+        const html = document.documentElement;
+
+        // Función para extraer el ID del archivo de Google Drive
+        function extractFileId(url) {
+            let fileId = null;
+            try {
+                const urlObject = new URL(url);
+                if (urlObject.hostname === 'drive.google.com') {
+                    // Intenta extraer de /file/d/ID/...
+                    let match = url.match(/file\/d\/([a-zA-Z0-9_-]+)/);
+                    if (match && match[1]) {
+                        fileId = match[1];
+                    } else {
+                        // Intenta extraer de /uc?id=ID... o /open?id=ID...
+                        match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+                        if (match && match[1]) {
+                            fileId = match[1];
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("URL inválida:", e);
+                return null;
+            }
+            return fileId;
+        }
+
+        // Evento para el botón Generar
+        generateButton.addEventListener('click', () => {
+            const originalUrl = originalLinkInput.value.trim();
+            errorMessage.textContent = ''; // Limpiar errores previos
+            generatedLinkInput.value = ''; // Limpiar campo generado
+
+            if (!originalUrl) {
+                errorMessage.textContent = 'Por favor, introduce un enlace.';
+                return;
+            }
+
+            const fileId = extractFileId(originalUrl);
+
+            if (fileId) {
+                const directLink = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                generatedLinkInput.value = directLink;
+            } else {
+                errorMessage.textContent = 'Enlace de Google Drive no válido o no se pudo extraer el ID.';
+            }
+        });
+
+        // Evento para el botón Copiar
+        copyButton.addEventListener('click', () => {
+            const linkToCopy = generatedLinkInput.value;
+            errorMessage.textContent = ''; // Limpiar errores
+
+            if (!linkToCopy) {
+                errorMessage.textContent = 'Primero genera un enlace para copiar.';
+                return;
+            }
+
+            navigator.clipboard.writeText(linkToCopy)
+                .then(() => {
+                    // Éxito al copiar
+                    copyButton.textContent = '¡Copiado!';
+                    copyButton.classList.add('bg-green-500', 'text-white'); // Feedback visual
+                    copyButton.classList.remove('bg-gray-200', 'dark:bg-gray-600', 'text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-300', 'dark:hover:bg-gray-500');
+
+                    // Volver al estado original después de 2 segundos
+                    setTimeout(() => {
+                        copyButton.textContent = 'Copiar Enlace';
+                         copyButton.classList.remove('bg-green-500', 'text-white');
+                         copyButton.classList.add('bg-gray-200', 'dark:bg-gray-600', 'text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-300', 'dark:hover:bg-gray-500');
+                    }, 2000);
+                })
+                .catch(err => {
+                    // Error al copiar
+                    console.error('Error al copiar al portapapeles: ', err);
+                    errorMessage.textContent = 'Error al copiar el enlace.';
+                });
+        });
+
+        // --- Funcionalidad Modo Oscuro (Opcional) ---
+
+        // Comprobar preferencia inicial (localStorage o sistema)
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          html.classList.add('dark');
+          body.classList.add('dark'); // Asegura que el body también tenga la clase
+        } else {
+          html.classList.remove('dark');
+          body.classList.remove('dark');
+        }
+
+        // Botón para alternar
+        darkModeToggle.addEventListener('click', () => {
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                body.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                html.classList.add('dark');
+                body.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+             // Actualiza las clases de los inputs para el focus en modo oscuro/claro
+             originalLinkInput.classList.toggle('dark', html.classList.contains('dark'));
+             generatedLinkInput.classList.toggle('dark', html.classList.contains('dark'));
+        });
+
+         // Asegura que los inputs tengan la clase 'dark' si el modo oscuro está activo al cargar
+         if (html.classList.contains('dark')) {
+             originalLinkInput.classList.add('dark');
+             generatedLinkInput.classList.add('dark');
+         }
+
+    </script>
+
+</body>
+</html>
